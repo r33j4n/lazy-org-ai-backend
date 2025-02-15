@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 from fastapi import HTTPException
 from app.core.config import settings
+from app.services.pdf_organizer_service import PDFOrganizerService
 
 router = APIRouter()
 
@@ -136,3 +137,29 @@ async def scan_folder_for_pdfs(db: Session = Depends(get_db)):
             except Exception as e:
                 errors.append(f"Error processing {file_path}: {str(e)}")
     return {"processed_files": processed_files, "errors": errors}
+
+@router.post("/organize")
+def organize_pdfs_endpoint(db: Session = Depends(get_db)):
+    """
+    Endpoint to group PDF files by their created_date (year and month).
+    This will copy each PDF into a subfolder structure under settings.ORGANIZED_FOLDER.
+    """
+    try:
+        organizer = PDFOrganizerService(db)
+        result = organizer.organize_pdfs_by_downloaded_date()  # Synchronous call
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/organize-mod-date")
+def organize_by_mod_date(db: Session = Depends(get_db)):
+    """
+    Organizes PDFs based on the /ModDate from pdf_metadata.
+    Files are copied into subfolders based on the year and month derived from /ModDate.
+    """
+    try:
+        organizer = PDFOrganizerService(db)
+        result = organizer.organize_pdfs_by_mod_date()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
